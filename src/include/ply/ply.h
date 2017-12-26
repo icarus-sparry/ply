@@ -53,6 +53,7 @@ struct globals {
 	int debug:1;
 	int dump:1;
 	int timeout;
+	int kernel_version;
 
 	size_t map_nelem;
 

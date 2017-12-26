@@ -34,6 +34,11 @@ using kprobes and tracepoints.
   * `-t`, `--timeout`=<seconds>:
     Terminate the program after the specified time.
 
+  * `-u`, `--usekern`;
+    Use the current kernel version for the constructed eBPF program, rather than the
+    version that is compiled into the program. Potentially this introduces problems,
+    it is better to recompile the program to match the current kernel.
+
   * `-v`, `--version`:
     Print version information.
 

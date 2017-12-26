@@ -81,7 +81,7 @@ static int ksym_prepare(FILE *fp, struct ksym *ksym)
 
 static int ksyms_cache_build(const char *in, const char *out)
 {
-	struct ksym_cache_hdr hdr = { .version = LINUX_VERSION_CODE };
+	struct ksym_cache_hdr hdr = { .version = G.kernel_version };
 	struct ksym ksym[2];
 	FILE *cfp, *kfp;
 	int err, i;

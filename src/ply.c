@@ -17,6 +17,7 @@
  * along with ply.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <ctype.h>
 #include <getopt.h>
 #include <linux/version.h>
 #include <signal.h>
@@ -34,9 +35,11 @@
 
 FILE *scriptfp;
 
-struct globals G;
+struct globals G= {
+	.kernel_version = LINUX_VERSION_CODE,
+};
 
-static const char *sopts = "AcdDht:v";
+static const char *sopts = "AcdDht:uv";
 static struct option lopts[] = {
 	{ "ascii",   no_argument,       0, 'A' },
 	{ "command", no_argument,       0, 'c' },
@@ -44,10 +47,41 @@ static struct option lopts[] = {
 	{ "dump",    no_argument,       0, 'D' },
 	{ "help",    no_argument,       0, 'h' },
 	{ "timeout", required_argument, 0, 't' },
+	{ "usekern", no_argument,       0, 'u' },
 	{ "version", no_argument,       0, 'v' },
 
 	{ NULL }
 };
+
+static void getkernelversion()
+{
+	FILE *f = fopen("/proc/sys/kernel/version", "r");
+	char buf[128];
+	if (!f)
+		return;
+	fgets(buf, sizeof(buf), f);
+	fclose(f);
+	/* Parse it by hand, no need to pull out a regular expression */
+	for (const char *s = buf; *s; s++) {
+		char *p1;
+		int patch, minor;
+		if (!isdigit(s[0]))
+			continue;	/* Single Digit */
+		if (s[1] != '.')
+			continue;
+		if (!isdigit(s[2]))
+			continue;
+		patch = strtol(s + 2, &p1, 10) & 255;
+		if (p1[0] != '.')
+			continue;
+		if (!isdigit(p1[1]))
+			continue;
+		minor = strtol(p1 + 1, NULL, 10) & 255;
+		G.kernel_version = ((*s - '0') << 16 + (patch << 8) + minor);
+		return;
+	}
+}
+
 
 static void usage()
 {
@@ -64,6 +98,7 @@ static void usage()
 	     "  -D                  Dump generated BPF and exit.\n"
 	     "  -h                  Print usage message and exit.\n"
 	     "  -t <timeout>        Terminate trace after <timeout> seconds.\n"
+	     "  -u                  Use kernel value of LINUX_VERSION_CODE.\n"
 	     "  -v                  Print version information.\n"
 		);
 }
@@ -75,10 +110,10 @@ static void version()
 		fputs("(" GIT_VERSION ")", stdout);
 
 	printf(" (linux-version:%u~%u.%u.%u)\n",
-	       LINUX_VERSION_CODE,
-	       (LINUX_VERSION_CODE >> 16) & 0xff,
-	       (LINUX_VERSION_CODE >>  8) & 0xff,
-	       (LINUX_VERSION_CODE >>  0) & 0xff);
+	       G.kernel_version,
+	       (G.kernel_version >> 16) & 0xff,
+	       (G.kernel_version >>  8) & 0xff,
+	       (G.kernel_version >>  0) & 0xff);
 }
 
 static int parse_opts(int argc, char **argv, FILE **sfp)
@@ -111,6 +146,9 @@ static int parse_opts(int argc, char **argv, FILE **sfp)
 				_e("timeout must be a positive integer");
 				usage(); exit(1);
 			}
+			break;
+		case 'u':
+			getkernelversion();
 			break;
 		case 'v':
 			version(); exit(0);
